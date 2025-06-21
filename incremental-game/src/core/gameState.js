@@ -22,6 +22,5 @@ export const GAME_STATE =
 
     skill: {
         unlock: []
-    }
-
-}
+    },
+};
