@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  },
+  "scripts": {
+    "dev": "vite"
+  }
+  
+}
