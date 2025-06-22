@@ -14,7 +14,8 @@ let baseNumber = 0;
 const GRID_SIZE = 56;
 let grid = {};
 let gridGraphics;
-let multiplicator = 0.8;
+let multiplicator = 20.8;
+let overflow = baseNumber - capBase;
 
 const baseTypes = [
     {
@@ -22,7 +23,7 @@ const baseTypes = [
         key: "buildBase",
         price: 10,
         income: -1,
-        description: "Need this base for\nbuild 3 more bases."
+        description: "Up your base integrity."
     },
     {
         name: "Base Low Cost",
@@ -94,6 +95,14 @@ function drawGrid(scene)
     gridGraphics.strokePath();
 }
 
+function spawnExplosion(x, y)
+{
+    const explosion = this.add.sprite(x, y, 'explosion');
+
+    explosion.play('explosion');
+    explosion.on('animationcomplete', () => explosion.destroy());
+}
+
 function preload()
 {
     this.load.image('map', 'resources/map.png');
@@ -102,6 +111,14 @@ function preload()
     this.load.image('lowCostBase', 'resources/1.png');
     this.load.image('highCostBase', 'resources/2.png');
     this.load.image('casino', 'resources/casino.png');
+    this.load.spritesheet('explosion', 'resources/explosion.png', {
+        frameWidth: 59,
+        frameHeight: 57,
+        startFrame: 0,
+        endFrame: 9,
+        spacing: 2
+    });
+    
 }
 
 function drawHUI()
@@ -140,14 +157,12 @@ function handleClickInput()
         const gridKey = getGridKey(gridPos.x, gridPos.y);
         const worldPos = gridToWorld(gridPos.x, gridPos.y);
 
-        if (pointer.worldY > map.height || (baseNumber >= capBase && selectedBaseIndex !== 0)) {
+        if (pointer.worldY > map.height) {
             return;
         }
-        if (GAME_STATE.ressources.gold >= baseTypes[selectedBaseIndex].price) {
-            if (worldPos.x < GRID_SIZE/2 || worldPos.x > map.width - GRID_SIZE/2 ||
-                worldPos.y < GRID_SIZE/2 || worldPos.y > map.height - GRID_SIZE/2) {
-                return;
-            }
+        if (GAME_STATE.ressources.gold >= baseTypes[selectedBaseIndex].price &&
+        (worldPos.x > GRID_SIZE / 2 || worldPos.x < map.width - GRID_SIZE / 2 ||
+        worldPos.y > GRID_SIZE / 2 || worldPos.y < map.height - GRID_SIZE / 2)) {
             if (grid[gridKey]) {
                 bases.indexOf(grid[gridKey]) > -1 ? bases.splice(bases.indexOf(grid[gridKey]), 1) : 0;
                 grid[gridKey].type > 0 ? baseNumber-- : grid[gridKey].type === 0 ? capBase -= 3 : 0;
@@ -155,8 +170,8 @@ function handleClickInput()
                 delete grid[gridKey];
             }
             capBase += (selectedBaseIndex === 0) * 3;
-            baseNumber += (selectedBaseIndex !== 0);
-            multiplicator *= (selectedBaseIndex === 3) ? 1.3 : 1;
+            baseNumber += (selectedBaseIndex !== 0) ? 1 : 0;
+            multiplicator *= (selectedBaseIndex === 3) ? 1.4 : 1;
             const newBaseData = {
                 sprite: this.add.image(worldPos.x, worldPos.y, baseTypes[selectedBaseIndex].key),
                 type: selectedBaseIndex
@@ -190,6 +205,12 @@ function create()
     map = this.add.image(0, 0, 'map').setOrigin(0, 0);
     this.cameras.main.setBounds(0, 0, map.width, map.height);
     this.cameras.main.setZoom(1);
+    this.anims.create({
+        key: 'explosion',
+        frames: this.anims.generateFrameNumbers('explosion', {start: 0, end: 9}),
+        frameRate: 18,
+        repeat: 0
+    });    
     drawGrid(this);
     drawHUI.call(this);
     handleClickInput.call(this);
@@ -207,15 +228,35 @@ function selectBase(index)
 function updateUI()
 {
     resourceText.setText("Money : " + GAME_STATE.ressources.gold +
-    "\n\nBind up or down for select the building\n" +
+    "\n\nArrow left or right for select the building\n" +
     "Click to place it.\nG: Toggle grid display" +
     "\nBase builded : " + baseNumber +
     "\nMaximum base integrity : " + capBase +
-    "\nMultiplicator : " + multiplicator);
+    "\nMultiplicator : " + Math.round(multiplicator * 100) / 100);
     selectedBaseText.setText(baseTypes[selectedBaseIndex].name +
-    " | Prix : " + baseTypes[selectedBaseIndex].price +
+    " | Price : " + baseTypes[selectedBaseIndex].price +
     " | Gain/sec : " + baseTypes[selectedBaseIndex].income +
     "\nDescription : " + baseTypes[selectedBaseIndex].description);
+}
+
+function calculExplosion()
+{
+    if (baseNumber > capBase) {
+        let eligible = bases.filter(b => b.type !== -1 && b.type !== 0);
+        if (eligible.length > 0 && Math.random() < Math.min((baseNumber - capBase) * 0.001, 1)) {
+            let base = eligible[Math.floor(Math.random() * eligible.length)];
+            spawnExplosion.call(this, base.sprite.x, base.sprite.y);
+            base.sprite.destroy();
+            bases.indexOf(base) !== -1 ? bases.splice(bases.indexOf(base), 1) : 0;
+            for (let b in grid) {
+                if (grid[b] === base) {
+                    delete grid[b];
+                    break;
+                }
+            }            
+            baseNumber--;
+        }
+    } 
 }
 
 function update(time, delta)
@@ -234,6 +275,7 @@ function update(time, delta)
         GAME_STATE.ressources.gold <= 0 ? loose.call(this) : 0;
         updateUI();
     }
+    calculExplosion.call(this);
 }
 
 function loose()
