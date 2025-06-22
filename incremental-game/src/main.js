@@ -14,8 +14,7 @@ let baseNumber = 0;
 const GRID_SIZE = 56;
 let grid = {};
 let gridGraphics;
-let multiplicator = 20.8;
-let overflow = baseNumber - capBase;
+let multiplicator = 0.8;
 
 const baseTypes = [
     {
