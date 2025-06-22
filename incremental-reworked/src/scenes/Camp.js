@@ -15,6 +15,7 @@ const GRID_SIZE = 56;
 let grid = {};
 let gridGraphics;
 let multiplicator = 0.8;
+let musicMuted = false;
 
 
 const baseTypes = [
@@ -66,6 +67,24 @@ export class Camp extends Scene
             frameRate: 18,
             repeat: 0
         });    
+        this.music = this.sound.add('music', {
+            loop: true,
+            volume: 0.5
+        });
+        if (!musicMuted) {
+            this.music.play();
+        }
+        this.input.keyboard.on('keydown-M', () => {
+            if (this.music.isPlaying) {
+                this.music.pause();
+                musicMuted = true;
+            } else {
+                this.music.resume();
+                musicMuted = false;
+            }
+        });
+
+
         this.drawGrid(this);
         this.drawHUI.call(this);
         this.handleClickInput.call(this);
@@ -91,8 +110,17 @@ export class Camp extends Scene
             lastIncome = time;
             GAME_STATE.info.total_time += 1;
             let total = 0;
+            // for (let b of bases) {
+            //     total += (b.type === -1) ? 2 : baseTypes[b.type].income;
+            // }
             for (let b of bases) {
-                total += (b.type === -1) ? 2 : baseTypes[b.type].income;
+                if (b.type === -1) {
+                    total += 2;
+                } else {
+                    const baseDef = baseTypes[b.type];
+                    const levelMultiplier = 1 + (b.level - 1) * 0.5;
+                    total += baseDef.income * levelMultiplier;
+                }
             }
             console.log(multiplicator);
             GAME_STATE.ressources.gold = Math.round((GAME_STATE.ressources.gold
@@ -250,7 +278,8 @@ export class Camp extends Scene
                 multiplicator *= (selectedBaseIndex === 3) ? 1.4 : 1;
                 const newBaseData = {
                     sprite: this.add.image(worldPos.x, worldPos.y, baseTypes[selectedBaseIndex].key),
-                    type: selectedBaseIndex
+                    type: selectedBaseIndex,
+                    level: 1
                 };
                 grid[gridKey] = newBaseData;
                 bases.push(newBaseData);
@@ -279,6 +308,28 @@ export class Camp extends Scene
             localStorage.removeItem('campSave');
             location.reload();
         });
+
+        this.input.keyboard.on('keydown-U', () => {
+            const pointer = this.input.activePointer;
+            const gridPos = this.worldToGrid(pointer.worldX, pointer.worldY);
+            const gridKey = this.getGridKey(gridPos.x, gridPos.y);
+            const building = grid[gridKey];
+
+            if (building && building.type >= 0) {
+                const upgradeCost = baseTypes[building.type].price * (building.level + 1);
+                if (GAME_STATE.ressources.gold >= upgradeCost) {
+                    GAME_STATE.ressources.gold -= upgradeCost;
+                    building.level++;
+                    this.add.text(
+                        building.sprite.x,
+                        building.sprite.y - 20,
+                        `Lvl ${building.level}`,
+                        { fontSize: '12px', fill: '#ff0' }
+                    ).setDepth(100).setScrollFactor(0).setAlpha(0.7).setOrigin(0.5);
+                    this.updateUI();
+                }
+            }
+        });
     }
 
     selectBase(index)
@@ -295,7 +346,8 @@ export class Camp extends Scene
             bases: bases.map(b => ({
                 gridX: Math.floor(b.sprite.x / GRID_SIZE),
                 gridY: Math.floor(b.sprite.y / GRID_SIZE),
-                type: b.type
+                type: b.type,
+                level: b.level || 1
             })),
             capBase,
             baseNumber,
@@ -345,7 +397,6 @@ export class Camp extends Scene
                 }
 
                 const sprite = this.add.image(worldPos.x, worldPos.y, baseTypes[type].key);
-                const baseData = { sprite, type };
                 bases.push(baseData);
                 grid[this.getGridKey(gridX, gridY)] = baseData;
             }

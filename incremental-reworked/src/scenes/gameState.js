@@ -23,4 +23,11 @@ export const GAME_STATE =
     skill: {
         unlock: []
     },
+
+    player: {
+        level: 1,
+        xp: 0,
+        nextLevelXP: 100
+    },
+
 };

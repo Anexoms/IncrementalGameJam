@@ -40,6 +40,7 @@ export class Preloader extends Scene
             endFrame: 9,
             spacing: 2
         });
+        this.load.audio('music', 'music.mp3')
     }
 
     create ()
