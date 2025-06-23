@@ -84,17 +84,12 @@ export class Camp extends Scene
             }
         });
 
-
+        GAME_STATE.ressources.gold = 0;
         this.drawGrid(this);
         this.drawHUI.call(this);
         this.handleClickInput.call(this);
         this.handleBindInput.call(this);
         this.updateUI();
-        try {
-            this.loadGame();
-        } catch (e) {
-            console.error("[ERROR]", e);
-        }
     } 
 
     update(time, delta)
@@ -102,7 +97,6 @@ export class Camp extends Scene
         GAME_STATE.ressources.gold < 0 && !this.gameOver ? this.loose.call(this) : 0;
 
         if (!this.lastSaveTime || time - this.lastSaveTime > 5000) {
-            this.saveGame();
             this.lastSaveTime = time;
         }
 
@@ -110,9 +104,6 @@ export class Camp extends Scene
             lastIncome = time;
             GAME_STATE.info.total_time += 1;
             let total = 0;
-            // for (let b of bases) {
-            //     total += (b.type === -1) ? 2 : baseTypes[b.type].income;
-            // }
             for (let b of bases) {
                 if (b.type === -1) {
                     total += 2;
@@ -305,7 +296,6 @@ export class Camp extends Scene
         });
 
         this.input.keyboard.on('keydown-R', () => {
-            localStorage.removeItem('campSave');
             location.reload();
         });
 
@@ -337,72 +327,5 @@ export class Camp extends Scene
         selectedBaseIndex = index;
         selectedBaseImage.setTexture(baseTypes[index].key);
         this.updateUI();
-    }
-
-    saveGame() {
-        const saveData = {
-            gold: GAME_STATE.ressources.gold,
-            totalTime: GAME_STATE.info.total_time,
-            bases: bases.map(b => ({
-                gridX: Math.floor(b.sprite.x / GRID_SIZE),
-                gridY: Math.floor(b.sprite.y / GRID_SIZE),
-                type: b.type,
-                level: b.level || 1
-            })),
-            capBase,
-            baseNumber,
-            multiplicator,
-            highscore: this.registry.get('highscore') || 0
-        };
-
-        localStorage.setItem('campSave', JSON.stringify(saveData));
-    }
-
-    loadGame() {
-
-        const raw = localStorage.getItem('campSave');
-        if (!raw) {
-            return;
-        }
-
-        let save = null;
-        try {
-            save = JSON.parse(raw);
-        } catch (e) {
-            return;
-        }
-
-        if (!Array.isArray(save.bases)) {
-            return;
-        }
-
-        try {
-            bases.forEach(b => b.sprite.destroy());
-            bases = [];
-            grid = {};
-
-            GAME_STATE.ressources.gold = save.gold ?? 0;
-            GAME_STATE.info.total_time = save.totalTime ?? 0;
-            capBase = save.capBase ?? 0;
-            baseNumber = save.baseNumber ?? 0;
-            multiplicator = save.multiplicator ?? 1;
-            this.registry.set('highscore', save.highscore ?? 0);
-
-            for (const b of save.bases) {
-                const { gridX, gridY, type } = b;
-                const worldPos = this.gridToWorld(gridX, gridY);
-
-                if (!baseTypes[type]) {
-                    continue;
-                }
-
-                const sprite = this.add.image(worldPos.x, worldPos.y, baseTypes[type].key);
-                bases.push(baseData);
-                grid[this.getGridKey(gridX, gridY)] = baseData;
-            }
-            this.updateUI();
-        } catch (e) {
-            console.error("[ERROR]", e);
-        }
     }
 }
